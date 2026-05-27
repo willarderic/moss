@@ -3,6 +3,8 @@ use crate::ast::{
     PrefixExpression, Statement, Variable,
 };
 use crate::lexer::Token;
+use crate::symbol_table::SymbolTableEntry;
+use std::collections::HashMap;
 
 #[derive(PartialOrd, Ord, PartialEq, Eq)]
 enum Precedence {
@@ -21,6 +23,7 @@ pub struct Parser {
     curr_token: Token,
     peek_token: Token,
     index: usize,
+    symbol_tables: Vec<HashMap<String, SymbolTableEntry>>,
 }
 
 fn get_infix_precedence(tok: &Token) -> Precedence {
@@ -41,6 +44,7 @@ impl Parser {
             curr_token: Token::UNKNOWN,
             peek_token: Token::UNKNOWN,
             index: 0,
+            symbol_tables: Vec::new(),
         };
 
         parser.advance();
@@ -69,6 +73,7 @@ impl Parser {
 
     pub fn parse(&mut self) -> Node {
         let mut decls = Vec::new();
+        self.symbol_tables.push(HashMap::new());
         while self.curr_token != Token::EOF {
             decls.push(self.parse_decl());
         }
@@ -94,11 +99,58 @@ impl Parser {
         self.advance();
 
         self.consume(Token::LPAREN);
+
+        let mut params = Vec::new();
+        let mut first = true;
+        while self.curr_token != Token::RPAREN {
+            if !first {
+                self.consume(Token::COMMA);
+            }
+            let name = match &self.curr_token {
+                Token::IDENTIFIER(ident) => ident.clone(),
+                _ => panic!("Expected identifier, got {}", self.curr_token),
+            };
+            self.advance();
+            let typ = match &self.curr_token {
+                Token::IDENTIFIER(ident) => ident.clone(),
+                _ => panic!("Expected type name, got {}", self.curr_token),
+            };
+            self.advance();
+            params.push(Variable {
+                name,
+                typ: Some(typ),
+                value: None,
+            });
+            first = false;
+        }
+
         self.consume(Token::RPAREN);
+
+        let mut returns = Vec::new();
+        first = true;
+        while self.curr_token != Token::LBRACE {
+            if !first {
+                self.consume(Token::COMMA);
+            }
+            let typ = match &self.curr_token {
+                Token::IDENTIFIER(ident) => ident.clone(),
+                _ => panic!("Expect type name, got {}", self.curr_token),
+            };
+            returns.push(typ);
+
+            self.advance();
+
+            first = false;
+        }
 
         let stmts = self.parse_block();
 
-        Declaration::FunctionDeclaration(Function { name, stmts })
+        Declaration::FunctionDeclaration(Function {
+            name,
+            params,
+            returns,
+            stmts,
+        })
     }
 
     fn parse_var_decl(&mut self) -> Declaration {
@@ -308,13 +360,21 @@ impl Parser {
                     _ => panic!("Expected ident for function call, got {}", left),
                 };
                 self.consume(Token::LPAREN);
-                // parse expr_list here
+
+                let mut args = Vec::new();
+                let mut first = true;
+                while self.curr_token != Token::RPAREN {
+                    if !first {
+                        self.consume(Token::COMMA);
+                    }
+                    let expr = self.parse_expr(Precedence::NONE);
+                    args.push(expr);
+
+                    first = false;
+                }
                 self.consume(Token::RPAREN);
 
-                Expression::Call(CallExpression {
-                    func: name,
-                    args: Vec::new(),
-                })
+                Expression::Call(CallExpression { func: name, args })
             }
             _ => panic!("Expected binary expression, got {}", self.curr_token),
         }

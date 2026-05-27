@@ -1,6 +1,7 @@
 mod ast;
 mod lexer;
 mod parser;
+mod symbol_table;
 
 use std::env;
 use std::fs;

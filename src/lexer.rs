@@ -15,6 +15,7 @@ pub enum Token {
     RBRACE,
     SEMICOLON,
     COLON,
+    COMMA,
     // operators
     PLUS,
     DASH,
@@ -54,6 +55,7 @@ impl std::fmt::Display for Token {
             Self::LBRACE => write!(f, "(LBRACE, {{)"),
             Self::SEMICOLON => write!(f, "(SEMICOLON, ;)"),
             Self::COLON => write!(f, "(COLON, :)"),
+            Self::COMMA => write!(f, "(COMMA, ,)"),
             Self::PLUS => write!(f, "(PLUS, +)"),
             Self::DASH => write!(f, "(DASH, -)"),
             Self::ASTERISK => write!(f, "(ASTERISK, *)"),
@@ -92,6 +94,7 @@ impl Token {
             Self::RBRACE => '}'.to_string(),
             Self::SEMICOLON => ';'.to_string(),
             Self::COLON => ':'.to_string(),
+            Self::COMMA => ','.to_string(),
             Self::PLUS => '+'.to_string(),
             Self::DASH => '-'.to_string(),
             Self::ASTERISK => '*'.to_string(),
@@ -141,6 +144,7 @@ fn token_from(lexeme: &str) -> Token {
         "?" => Token::QUESTION,
         ";" => Token::SEMICOLON,
         "=" => Token::ASSIGN,
+        "," => Token::COMMA,
         _ => Token::UNKNOWN,
     }
 }
@@ -165,6 +169,7 @@ fn is_punctuator(c: char) -> bool {
         '~' => true,
         ':' => true,
         ';' => true,
+        ',' => true,
         _ => false,
     }
 }

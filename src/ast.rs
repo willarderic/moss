@@ -10,7 +10,7 @@ decl       → fn_decl
             | var_decl ";" ;
 decl_list  → epsilon
             | decl decl_list ;
-fn_decl     → "fn" IDENT "(" ")" fn_return block ;
+fn_decl     → "fn" IDENT "(" param_list ")" fn_return block ;
 fn_return   → "->" expr_list ;
 block       → stmt_list;
 
@@ -19,6 +19,11 @@ var_decl    → "var" IDENT var_type "=" expr
             | "var" IDENT var_type
             | "var" IDENT "=" expr ;
 short_var_decl → IDENT "=" expr ;
+param_list  → epsilon
+            | var var_list ;
+var_list    → epsilon
+            | "," var var_list ;
+var         → IDENT IDENT ;
 var_type    → epsilon
             | IDENT ;
 type        → IDENT
@@ -57,6 +62,7 @@ pub enum Node {
     Program(Vec<Declaration>),
     Declaration(Declaration),
     Statement(Statement),
+    Expression(Expression),
 }
 
 impl Display for Node {
@@ -72,6 +78,7 @@ impl Display for Node {
             }
             Self::Declaration(decl) => write!(f, "{}", decl),
             Self::Statement(stmt) => write!(f, "{}", stmt),
+            Self::Expression(expr) => write!(f, "{}", expr),
         }
     }
 }
@@ -87,6 +94,8 @@ pub enum Declaration {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Function {
     pub name: String,
+    pub params: Vec<Variable>,
+    pub returns: Vec<String>,
     pub stmts: Vec<Statement>,
 }
 
@@ -97,11 +106,39 @@ pub struct Variable {
     pub value: Option<Expression>,
 }
 
+impl Display for Variable {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "((NAME, {}), ", self.name).unwrap();
+
+        if let Some(typ) = &self.typ {
+            write!(f, "(TYPE, {}), ", typ).unwrap();
+        } else {
+            write!(f, "(TYPE, None)").unwrap();
+        };
+
+        if let Some(value) = &self.value {
+            write!(f, "(VALUE, {}))", value).unwrap();
+        } else {
+            write!(f, "(VALUE, None))").unwrap();
+        }
+        Ok(())
+    }
+}
+
 impl Display for Declaration {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::FunctionDeclaration(func) => {
-                write!(f, "\tFUNCTION({})\n", func.name).unwrap();
+                write!(f, "\tFUNCTION((NAME, {}), ", func.name).unwrap();
+                write!(f, "PARAMS(");
+                func.params
+                    .iter()
+                    .for_each(|param| write!(f, "{},", param).unwrap());
+                write!(f, "), RETURNS(");
+                func.returns
+                    .iter()
+                    .for_each(|ret| write!(f, "{},", ret).unwrap());
+                write!(f, "))\n");
                 func.stmts
                     .iter()
                     .for_each(|stmt| write!(f, "\t{}\n", stmt).unwrap());
