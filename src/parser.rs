@@ -1,6 +1,6 @@
 use crate::ast::{
     CallExpression, Declaration, Expression, For, Function, If, InfixExpression, Node,
-    PrefixExpression, Statement, Variable,
+    PrefixExpression, Statement, Variable, Type,
 };
 use crate::lexer::Token;
 
@@ -79,7 +79,7 @@ impl Parser {
     fn parse_decl(&mut self) -> Declaration {
         match self.curr_token {
             Token::FN => self.parse_fn_decl(),
-            Token::VAR => self.parse_var_decl(),
+            Token::VAR => self.parse_var_decl_with_semicolon(),
             _ => panic!("No matching declaration"),
         }
     }
@@ -109,11 +109,7 @@ impl Parser {
             _ => panic!("Expected identifier, got {}", self.curr_token),
         };
         self.advance();
-        let mut typ: Option<String> = None;
-        if let Token::IDENTIFIER(ident) = &self.curr_token {
-            typ = Some(ident.clone());
-            self.advance();
-        }
+        let typ = self.parse_var_type();
 
         let var = match self.curr_token {
             Token::ASSIGN => {
@@ -133,9 +129,54 @@ impl Parser {
             }
             _ => panic!("Expected \";\" or \"=\" but got {}", self.curr_token),
         };
-        self.consume(Token::SEMICOLON);
 
         var
+    }
+
+    fn parse_var_decl_with_semicolon(&mut self) -> Declaration {
+        let decl = self.parse_var_decl();
+        self.consume(Token::SEMICOLON);
+        decl
+    }
+
+    fn parse_var_type(&mut self) -> Option<Type> {
+        let mut pointer = false;
+        let mut array = false;
+        let mut array_size = 0;
+        match self.curr_token {
+            Token::ASTERISK => {
+                pointer = true;
+                self.consume(Token::ASTERISK);
+            }
+            Token::LBRACKET => {
+                array = true;
+                self.consume(Token::LBRACKET);
+                array_size = match self.curr_token {
+                    Token::NUMBER(n) => n,
+                    _ => panic!("expecting size of array"),
+                };
+                self.advance();
+                self.consume(Token::RBRACKET);
+            }
+            _ => (),
+        };
+
+        let t = match &self.curr_token {
+            Token::IDENTIFIER(ident) => String::from(ident),
+            _ => {
+                if (pointer || array || array_size != 0) {
+                    panic!("expected *, [, or ident");
+                }
+                return None
+            }
+        };
+        self.advance();
+        Some(Type {
+            t,
+            pointer,
+            array,
+            array_size,
+        })
     }
 
     fn parse_block(&mut self) -> Vec<Statement> {
@@ -154,7 +195,7 @@ impl Parser {
             Token::RETURN => self.parse_return_statement(),
             Token::FOR => self.parse_for_statement(),
             Token::IF => self.parse_if_statement(),
-            Token::VAR => match self.parse_var_decl() {
+            Token::VAR => match self.parse_var_decl_with_semicolon() {
                 Declaration::VariableDeclaration(var) => Statement::VariableDeclaration(var),
                 _ => panic!("Expected variable declaration"),
             },
@@ -223,7 +264,7 @@ impl Parser {
         let mut left = match self.curr_token {
             Token::IDENTIFIER(_) => self.parse_ident_expr(),
             Token::NUMBER(_) => self.parse_num_expr(),
-            Token::DASH | Token::TILDE | Token::BANG => self.parse_prefix_expr(),
+            Token::DASH | Token::TILDE | Token::BANG | Token::ASTERISK | Token::AMPERSAND => self.parse_prefix_expr(),
             _ => panic!("Expected prefix expression, got {}", self.curr_token),
         };
         while self.curr_token != Token::SEMICOLON
@@ -271,7 +312,9 @@ impl Parser {
 
     fn parse_prefix_expr(&mut self) -> Expression {
         let op = match self.curr_token {
-            Token::DASH | Token::TILDE | Token::BANG => self.curr_token.clone(),
+            Token::DASH | Token::TILDE | Token::BANG | Token::ASTERISK | Token::AMPERSAND => {
+                self.curr_token.clone()
+            }
             _ => panic!("Expected prefix operator, got {}", self.curr_token),
         };
         self.advance();

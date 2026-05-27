@@ -11,7 +11,6 @@ decl       → fn_decl
 decl_list  → epsilon
             | decl decl_list ;
 fn_decl     → "fn" IDENT "(" ")" fn_return block ;
-fn_return   → "->" expr_list ;
 block       → stmt_list;
 
 decl_list   → decl decl_list ;
@@ -20,12 +19,9 @@ var_decl    → "var" IDENT var_type "=" expr
             | "var" IDENT "=" expr ;
 short_var_decl → IDENT "=" expr ;
 var_type    → epsilon
-            | IDENT ;
-type        → IDENT
-            | IDENT "struct" "{" field_decl_list "}"
-field_decl  → IDENT type
-field_decl_list      → epsilon
-            | field_decl ";" field_decl_list;
+            | IDENT 
+            | "[" NUMBER "]" IDENT;
+            | "*" IDENT
 stmt        → var_decl ";"
             | for_stmt
             | if_stmt
@@ -47,7 +43,7 @@ expr_list   → epsilon
             | expr "," expr_list
 literal     → NUMBER | STRING | IDENT | "true" | "false" | "null" ;
 grouping    → "(" expr ")" ;
-unary       → ( "-" | "~" | "!" | "*" ) expr ;
+unary       → ( "-" | "~" | "!" | "*" | "&" ) expr ;
 binary      → expr op expr ;
 op          → "==" | "!=" | "<" | "<=" | ">" | ">="
                | "+"  | "-"  | "*" | "/" ;
@@ -91,9 +87,23 @@ pub struct Function {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Type {
+    pub t: String,
+    pub pointer: bool,
+    pub array: bool,
+    pub array_size: u64,
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "Type [t: {}, pointer: {}, array: {}, array_size: {}]", self.t, self.pointer, self.array, self.array_size)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Variable {
     pub name: String,
-    pub typ: Option<String>,
+    pub typ: Option<Type>,
     pub value: Option<Expression>,
 }
 
