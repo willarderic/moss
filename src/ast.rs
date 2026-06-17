@@ -87,23 +87,23 @@ pub struct Function {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Type {
+pub struct VariableType {
     pub t: String,
     pub pointer: bool,
     pub array: bool,
     pub array_size: u64,
 }
 
-impl Display for Type {
+impl Display for VariableType {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "Type [t: {}, pointer: {}, array: {}, array_size: {}]", self.t, self.pointer, self.array, self.array_size)
+        write!(f, "VariableType [t: {}, pointer: {}, array: {}, array_size: {}]", self.t, self.pointer, self.array, self.array_size)
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Variable {
     pub name: String,
-    pub typ: Option<Type>,
+    pub var_type: Option<VariableType>,
     pub value: Option<Expression>,
 }
 
@@ -118,8 +118,8 @@ impl Display for Declaration {
                 Ok(())
             }
             Self::VariableDeclaration(var) => {
-                let mut s = format!("\tVAR({}", var.name);
-                let s = match &var.typ {
+                let s = format!("\tVAR({}", var.name);
+                let s = match &var.var_type {
                     Some(t) => format!("{}, {}", s, t),
                     None => format!("{}, None", s),
                 };
@@ -181,7 +181,7 @@ impl Display for Statement {
             }
             Self::VariableDeclaration(var) => {
                 let mut s = format!("\tVAR({}", var.name);
-                s = match &var.typ {
+                s = match &var.var_type {
                     Some(t) => format!("{}, {}", s, t),
                     None => format!("{}, None", s),
                 };

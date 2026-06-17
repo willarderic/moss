@@ -2,6 +2,8 @@ mod ast;
 mod ir;
 mod lexer;
 mod parser;
+mod symbol_table;
+mod ir;
 
 use std::env;
 use std::fs;
@@ -13,7 +15,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
-        panic!("usage: ./mosraelc <input program>");
+        panic!("usage: ./mossc <input program>");
     }
 
     let file_path = &args[1];

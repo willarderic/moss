@@ -1,6 +1,6 @@
 use crate::ast::{
     CallExpression, Declaration, Expression, For, Function, If, InfixExpression, Node,
-    PrefixExpression, Statement, Variable, Type,
+    PrefixExpression, Statement, Variable, VariableType,
 };
 use crate::lexer::Token;
 
@@ -115,7 +115,7 @@ impl Parser {
             Token::ASSIGN => {
                 self.consume(Token::ASSIGN);
                 let value = Some(self.parse_expr(Precedence::NONE));
-                Declaration::VariableDeclaration(Variable { name, typ, value })
+                Declaration::VariableDeclaration(Variable { name, var_type: typ, value })
             }
             Token::SEMICOLON => {
                 if let None = &typ {
@@ -123,7 +123,7 @@ impl Parser {
                 }
                 Declaration::VariableDeclaration(Variable {
                     name,
-                    typ,
+                    var_type: typ,
                     value: None,
                 })
             }
@@ -139,7 +139,7 @@ impl Parser {
         decl
     }
 
-    fn parse_var_type(&mut self) -> Option<Type> {
+    fn parse_var_type(&mut self) -> Option<VariableType> {
         let mut pointer = false;
         let mut array = false;
         let mut array_size = 0;
@@ -164,14 +164,14 @@ impl Parser {
         let t = match &self.curr_token {
             Token::IDENTIFIER(ident) => String::from(ident),
             _ => {
-                if (pointer || array || array_size != 0) {
+                if pointer || array || array_size != 0 {
                     panic!("expected *, [, or ident");
                 }
                 return None
             }
         };
         self.advance();
-        Some(Type {
+        Some(VariableType {
             t,
             pointer,
             array,
