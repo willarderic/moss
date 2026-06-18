@@ -170,7 +170,7 @@ impl Parser {
         };
         self.advance();
         VariableType {
-            t,
+            ident: t,
             pointer,
             array,
             array_size,

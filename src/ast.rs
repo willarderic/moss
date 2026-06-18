@@ -88,7 +88,7 @@ pub struct Function {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VariableType {
-    pub t: String,
+    pub ident: String,
     pub pointer: bool,
     pub array: bool,
     pub array_size: u64,
@@ -96,7 +96,7 @@ pub struct VariableType {
 
 impl Display for VariableType {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "VariableType [t: {}, pointer: {}, array: {}, array_size: {}]", self.t, self.pointer, self.array, self.array_size)
+        write!(f, "VariableType [t: {}, pointer: {}, array: {}, array_size: {}]", self.ident, self.pointer, self.array, self.array_size)
     }
 }
 

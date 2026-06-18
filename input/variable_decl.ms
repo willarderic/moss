@@ -1,4 +1,5 @@
 fn main() {
-	var x u32 = 10;
-	var y u32 = 20;
+	var x u64 = 10;
+	var y u64 = 20;
+	var z u64 = -y;
 }
