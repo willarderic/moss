@@ -1,1 +1,4 @@
-var x = 10;
+fn main() {
+	var x u32 = 10;
+	var y u32 = 20;
+}

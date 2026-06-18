@@ -118,9 +118,6 @@ impl Parser {
                 Declaration::VariableDeclaration(Variable { name, var_type: typ, value })
             }
             Token::SEMICOLON => {
-                if let None = &typ {
-                    panic!("Cannot infer type of {}", name);
-                }
                 Declaration::VariableDeclaration(Variable {
                     name,
                     var_type: typ,
@@ -139,7 +136,7 @@ impl Parser {
         decl
     }
 
-    fn parse_var_type(&mut self) -> Option<VariableType> {
+    fn parse_var_type(&mut self) -> VariableType {
         let mut pointer = false;
         let mut array = false;
         let mut array_size = 0;
@@ -164,19 +161,20 @@ impl Parser {
         let t = match &self.curr_token {
             Token::IDENTIFIER(ident) => String::from(ident),
             _ => {
-                if pointer || array || array_size != 0 {
-                    panic!("expected *, [, or ident");
-                }
-                return None
+                panic!("expecting variable type");
+                // if pointer || array || array_size != 0 {
+                //     panic!("expected *, [, or ident");
+                // }
+                // return None
             }
         };
         self.advance();
-        Some(VariableType {
+        VariableType {
             t,
             pointer,
             array,
             array_size,
-        })
+        }
     }
 
     fn parse_block(&mut self) -> Vec<Statement> {

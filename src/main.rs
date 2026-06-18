@@ -1,5 +1,4 @@
 mod ast;
-mod ir;
 mod lexer;
 mod parser;
 mod symbol_table;
@@ -10,6 +9,7 @@ use std::fs;
 
 use crate::lexer::lex;
 use crate::parser::Parser;
+use crate::ir::IR;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -24,9 +24,16 @@ fn main() {
 
     println!("Contents: \n{contents}");
     let tokens = lex(contents);
-    println!("Tokens:");
+    println!("------------ Lexer Output ------------");
     tokens.iter().for_each(|tok| println!("\t{}", tok));
     let mut parser = Parser::new(tokens);
     let program = parser.parse();
+    println!("------------ Parser Output ------------");
     println!("{}", program);
+
+    let mut ir = IR::new(); 
+    let _ = ir.gen_ssa(&program);
+    println!("------------ IR Output ------------");
+    println!("{}", ir);
+
 }

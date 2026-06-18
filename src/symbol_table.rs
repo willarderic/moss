@@ -22,15 +22,15 @@ impl SymbolTable {
     //     self.table.insert(String::from(identifier), symbol); 
     // }
 
-    pub fn defineVariable(&mut self, identifier: &str, var_type: VariableType) {
-        self.table.insert(String::from(identifier), Symbol::VARIABLE(var_type));
+    pub fn define_variable(&mut self, identifier: &str, var_type: &VariableType) {
+        self.table.insert(String::from(identifier), Symbol::VARIABLE(var_type.clone()));
     }
 
     // pub fn get(&self, identifier: &str) -> Option<&Symbol> {
     //     self.table.get(identifier)
     // }
 
-    pub fn getVariable(&self, identifier: &str) -> Option<&VariableType> {
+    pub fn get_variable(&self, identifier: &str) -> Option<&VariableType> {
         match self.table.get(identifier) {
             Some(symbol) => match symbol {
                 Symbol::VARIABLE(var_type) => Some(&var_type),

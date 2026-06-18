@@ -103,7 +103,7 @@ impl Display for VariableType {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Variable {
     pub name: String,
-    pub var_type: Option<VariableType>,
+    pub var_type: VariableType,
     pub value: Option<Expression>,
 }
 
@@ -119,11 +119,7 @@ impl Display for Declaration {
             }
             Self::VariableDeclaration(var) => {
                 let s = format!("\tVAR({}", var.name);
-                let s = match &var.var_type {
-                    Some(t) => format!("{}, {}", s, t),
-                    None => format!("{}, None", s),
-                };
-
+                format!("{}, {}", s, var.var_type);
                 let s = match &var.value {
                     Some(v) => format!("{}, {})", s, v),
                     None => format!("{}, None)", s),
@@ -181,11 +177,7 @@ impl Display for Statement {
             }
             Self::VariableDeclaration(var) => {
                 let mut s = format!("\tVAR({}", var.name);
-                s = match &var.var_type {
-                    Some(t) => format!("{}, {}", s, t),
-                    None => format!("{}, None", s),
-                };
-
+                s = format!("{}, {}", s, var.var_type);
                 s = match &var.value {
                     Some(v) => format!("{}, {})", s, v),
                     None => format!("{}, None)", s),
