@@ -43,10 +43,11 @@ impl IdStore {
 #[derive(Clone, Debug, Eq, PartialEq, strum_macros::Display)]
 enum Op {
     CONST,
-    COPY,
     NEG,
-    NOT,
     ADD,
+    MULT,
+    SUB,
+    DIV,
 }
 
 // Representation of SSA.
@@ -71,8 +72,8 @@ impl Display for Value {
         }
         if let Some(arg2) = self.arg2.clone() {
             match arg2 {
-                ValueType::ID(id) => s = format!("{} v{}", s, id), 
-                ValueType::CONST(c) => s = format!("{} {}", s, c),
+                ValueType::ID(id) => s = format!("{}, v{}", s, id), 
+                ValueType::CONST(c) => s = format!("{}, {}", s, c),
             }
         }
         write!(f, "{}", s)
@@ -230,6 +231,7 @@ impl IR {
                 ExprInfo { id: code.last().unwrap().id, code, var_type }
             }
             Expression::Prefix(prefix) => self.gen_prefix_expr(prefix), 
+            Expression::Infix(infix) => self.gen_infix_expr(infix),
             _ => panic!("not a valid expression for gen"),
         }
     }
@@ -251,5 +253,31 @@ impl IR {
             }
             _ => panic!("not a valid prefix operator!")
         }
+    }
+
+    fn gen_infix_expr(&mut self, infix: &InfixExpression) -> ExprInfo {
+        let mut code = Vec::new();
+        let mut expr_info_left = self.gen_expr(&infix.left);
+        let mut expr_info_right = self.gen_expr(&infix.right);
+        if expr_info_left.var_type.ident != expr_info_right.var_type.ident {
+            panic!("type mismatch for {}", infix.op);
+        }
+        let op = match infix.op {
+            Token::PLUS => Op::ADD,
+            Token::ASTERISK => Op::MULT,
+            Token::DASH => Op::SUB,
+            Token::SLASH => Op::DIV,
+            _ => panic!("not a valid binary operator"),
+        };
+        code.append(&mut expr_info_left.code);
+        code.append(&mut expr_info_right.code);
+        let val = Value {
+            id: self.id_store.next(),
+            op,
+            arg1: Some(ValueType::ID(expr_info_left.id)),
+            arg2: Some(ValueType::ID(expr_info_right.id)),
+        };
+        code.push(val);
+        ExprInfo { id: code.last().unwrap().id, code, var_type: expr_info_left.var_type }
     }
 }

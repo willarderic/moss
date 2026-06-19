@@ -96,7 +96,7 @@ pub struct VariableType {
 
 impl Display for VariableType {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "VariableType [t: {}, pointer: {}, array: {}, array_size: {}]", self.ident, self.pointer, self.array, self.array_size)
+        write!(f, "VariableType [ident: {}, pointer: {}, array: {}, array_size: {}]", self.ident, self.pointer, self.array, self.array_size)
     }
 }
 
