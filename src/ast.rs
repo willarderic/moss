@@ -41,7 +41,7 @@ expr        → literal
             | call ;
 expr_list   → epsilon
             | expr "," expr_list
-literal     → NUMBER | STRING | IDENT | "true" | "false" | "null" ;
+literal     → NUMBER | BOOL | STRING | IDENT | "true" | "false" | "null" ;
 grouping    → "(" expr ")" ;
 unary       → ( "-" | "~" | "!" | "*" | "&" ) expr ;
 binary      → expr op expr ;
@@ -219,6 +219,7 @@ pub struct CallExpression {
 pub enum Expression {
     Identifier(String),
     Number(u64),
+    Bool(bool),
     Prefix(PrefixExpression),
     Infix(InfixExpression),
     Call(CallExpression),
@@ -229,6 +230,7 @@ impl Display for Expression {
         match self {
             Self::Identifier(ident) => write!(f, "{}", ident),
             Self::Number(num) => write!(f, "{}", num),
+            Self::Bool(b) => write!(f, "{}", b),
             Self::Prefix(prefix) => write!(f, "({}, {})", prefix.op, prefix.operand),
             Self::Infix(infix) => write!(f, "({}, {}, {})", infix.op, infix.left, infix.right),
             Self::Call(call) => {

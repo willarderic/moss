@@ -28,7 +28,7 @@ fn get_infix_precedence(tok: &Token) -> Precedence {
         Token::ASSIGN => Precedence::ASSIGN,
         Token::PLUS | Token::DASH => Precedence::SUM,
         Token::ASTERISK | Token::SLASH => Precedence::PRODUCT,
-        Token::LT | Token::LEQ | Token::GT | Token::GEQ | Token::EQ => Precedence::CONDITIONAL,
+        Token::LT | Token::LEQ | Token::GT | Token::GEQ | Token::EQ | Token::NEQ => Precedence::CONDITIONAL,
         Token::LPAREN => Precedence::CALL,
         _ => Precedence::NONE,
     }
@@ -262,6 +262,7 @@ impl Parser {
         let mut left = match self.curr_token {
             Token::IDENTIFIER(_) => self.parse_ident_expr(),
             Token::NUMBER(_) => self.parse_num_expr(),
+            Token::TRUE | Token::FALSE => self.parse_bool_expr(),
             Token::DASH | Token::TILDE | Token::BANG | Token::ASTERISK | Token::AMPERSAND => self.parse_prefix_expr(),
             _ => panic!("Expected prefix expression, got {}", self.curr_token),
         };
@@ -279,6 +280,7 @@ impl Parser {
                 | Token::GT
                 | Token::GEQ
                 | Token::EQ
+                | Token::NEQ
                 | Token::LPAREN => self.parse_infix_expr(left),
                 _ => panic!("Expected infix expression, got {}", self.curr_token),
             };
@@ -308,6 +310,17 @@ impl Parser {
         Expression::Number(num)
     }
 
+    fn parse_bool_expr(&mut self) -> Expression {
+        let b = match self.curr_token {
+            Token::TRUE => true,
+            Token::FALSE => false,
+            _ => panic!("Expected number but got {}", self.curr_token),
+        };
+        self.advance();
+
+        Expression::Bool(b)
+    }
+
     fn parse_prefix_expr(&mut self) -> Expression {
         let op = match self.curr_token {
             Token::DASH | Token::TILDE | Token::BANG | Token::ASTERISK | Token::AMPERSAND => {
@@ -332,7 +345,8 @@ impl Parser {
             | Token::LEQ
             | Token::GT
             | Token::GEQ
-            | Token::EQ => {
+            | Token::EQ
+            | Token::NEQ => {
                 let op = self.curr_token.clone();
                 self.advance();
                 let right = self.parse_expr(get_infix_precedence(&op));

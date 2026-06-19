@@ -38,6 +38,8 @@ pub enum Token {
     FOR,
     IF,
     ELSE,
+    TRUE,
+    FALSE,
     EOF,
 }
 
@@ -76,6 +78,8 @@ impl std::fmt::Display for Token {
             Self::VAR => write!(f, "(VAR, var)"),
             Self::FOR => write!(f, "(FOR, for)"),
             Self::ELSE => write!(f, "(ELSE, else)"),
+            Self::TRUE => write!(f, "(TRUE, true)"),
+            Self::FALSE => write!(f, "(FALSE, false)"),
             Self::EOF => write!(f, "(EOF, )"),
         }
     }
@@ -115,6 +119,8 @@ impl Token {
             Self::VAR => "var".to_string(),
             Self::FOR => "for".to_string(),
             Self::ELSE => "else".to_string(),
+            Self::TRUE => "true".to_string(),
+            Self::FALSE => "false".to_string(),
             _ => '\0'.to_string(),
         }
     }
@@ -183,7 +189,7 @@ fn is_alpha(c: char) -> bool {
 }
 
 fn is_alphanumeric(c: char) -> bool {
-    is_digit(c) || is_alpha(c)
+    is_digit(c) || is_alpha(c) || c == '_'
 }
 
 fn punctuator_eq<I: Iterator<Item = char>>(c: char, chars: &mut Peekable<I>) -> Token {
@@ -232,6 +238,8 @@ fn handle_keyword(word: &str) -> Option<Token> {
         "var" => Some(Token::VAR),
         "for" => Some(Token::FOR),
         "else" => Some(Token::ELSE),
+        "true" => Some(Token::TRUE),
+        "false" => Some(Token::FALSE),
         _ => None,
     }
 }
