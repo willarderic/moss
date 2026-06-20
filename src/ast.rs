@@ -19,7 +19,7 @@ var_decl    → "var" IDENT var_type "=" expr
             | "var" IDENT "=" expr ;
 short_var_decl → IDENT "=" expr ;
 var_type    → epsilon
-            | IDENT 
+            | IDENT
             | "[" NUMBER "]" IDENT;
             | "*" IDENT
 stmt        → var_decl ";"
@@ -83,7 +83,7 @@ pub enum Declaration {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Function {
     pub name: String,
-    pub stmts: Vec<Statement>,
+    pub block: Statement,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -96,7 +96,11 @@ pub struct VariableType {
 
 impl Display for VariableType {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "VariableType [ident: {}, pointer: {}, array: {}, array_size: {}]", self.ident, self.pointer, self.array, self.array_size)
+        write!(
+            f,
+            "VariableType [ident: {}, pointer: {}, array: {}, array_size: {}]",
+            self.ident, self.pointer, self.array, self.array_size
+        )
     }
 }
 
@@ -111,10 +115,7 @@ impl Display for Declaration {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::FunctionDeclaration(func) => {
-                write!(f, "\tFUNCTION({})\n", func.name).unwrap();
-                func.stmts
-                    .iter()
-                    .for_each(|stmt| write!(f, "\t{}\n", stmt).unwrap());
+                write!(f, "\tFUNCTION({})\n{}", func.name, func.block).unwrap();
                 Ok(())
             }
             Self::VariableDeclaration(var) => {
@@ -137,6 +138,12 @@ pub enum Statement {
     ReturnStatement(Expression),
     ExpressionStatement(Expression),
     VariableDeclaration(Variable),
+    BlockStatement(Block),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Block {
+    pub stmts: Vec<Statement>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -144,13 +151,14 @@ pub struct For {
     pub pre: Option<Box<Expression>>,
     pub cond: Expression,
     pub post: Option<Box<Expression>>,
-    pub block: Vec<Statement>,
+    pub block: Box<Statement>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct If {
     pub cond: Expression,
-    pub block: Vec<Statement>,
+    pub consequent: Box<Statement>,
+    pub alternate: Option<Box<Statement>>,
 }
 
 impl Display for Statement {
@@ -167,12 +175,7 @@ impl Display for Statement {
                 if let Some(post) = &for_stmt.post {
                     s = format!("{}, POST: {}", s, post);
                 }
-                write!(f, "{})\n", s);
-                for_stmt
-                    .block
-                    .iter()
-                    .for_each(|stmt| write!(f, "\t\t{}", stmt).unwrap());
-
+                write!(f, "{})\n{}", s, for_stmt.block);
                 Ok(())
             }
             Self::VariableDeclaration(var) => {
@@ -185,11 +188,19 @@ impl Display for Statement {
                 write!(f, "{}", s)
             }
             Self::IfStatement(if_stmt) => {
-                write!(f, "\tIF({})\n", if_stmt.cond);
-                if_stmt
-                    .block
+                write!(f, "\tIF({})\n{}", if_stmt.cond, if_stmt.consequent);
+                if let Some(alternate) = &if_stmt.alternate {
+                    write!(f, "\n\t\tELSE\n{}", alternate);
+                }
+                Ok(())
+            }
+            Self::BlockStatement(block) => {
+                write!(f, "\tBLOCK").unwrap();
+                block
+                    .stmts
                     .iter()
-                    .for_each(|stmt| write!(f, "\t\t{}", stmt).unwrap());
+                    .for_each(|stmt| write!(f, "\n\t{}", stmt).unwrap());
+                write!(f, "\n\tEND").unwrap();
                 Ok(())
             }
         }

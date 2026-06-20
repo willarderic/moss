@@ -100,8 +100,13 @@ impl IdStore {
         IdStore { next_id: 0 }
     }
 
-    pub fn next(&mut self) -> u64 {
+    pub fn get(&mut self) -> u64 {
+        let id = self.next_id;
         self.next_id += 1;
+        id
+    }
+    
+    pub fn next(&self) -> u64 {
         self.next_id
     }
 }
@@ -143,8 +148,11 @@ enum Op {
     EQ,
     #[strum(to_string = "!=")]
     NEQ,
+    GOTO,
+    IF,
+    IF_FALSE,
     RET_VAL,
-    RET
+    RET,
 }
 
 fn valid_binop_and_type(op: &Op, type_name: &str) -> bool {
@@ -295,7 +303,7 @@ impl IR {
         }
         None
     }
-    
+
     pub fn update_variable(&mut self, ident: &str, var_info: VariableInfo) {
         for scope in self.scopes.iter_mut().rev() {
             if let Some(_) = scope.get_variable(ident) {
@@ -304,7 +312,6 @@ impl IR {
             }
         }
     }
-
 
     pub fn gen_ssa(&mut self, node: &Node) -> Vec<Fn> {
         // Create the global symbol table
@@ -328,25 +335,33 @@ impl IR {
         match decl {
             Declaration::FunctionDeclaration(function) => {
                 // Functions create a new block and therefore get a new symbol table
-                self.scopes.push(SymbolTable::new());
                 let mut fnir = Fn::new(&function.name);
-                function
-                    .stmts
-                    .iter()
-                    .for_each(|stmt| fnir.add_code(&mut self.gen_stmt(&stmt)));
-                // end of the functions scope
-                self.scopes.pop();
+                fnir.add_code(&mut self.gen_stmt(&function.block));
                 Some(fnir)
             }
             _ => None,
         }
     }
 
+    fn gen_block_stmt(&mut self, block: &Block) -> Vec<Value> {
+        self.scopes.push(SymbolTable::new());
+        let mut code = Vec::new();
+        block
+            .stmts
+            .iter()
+            .for_each(|stmt| code.append(&mut self.gen_stmt(&stmt)));
+        self.scopes.pop();
+
+        code
+    }
+
     fn gen_stmt(&mut self, stmt: &Statement) -> Vec<Value> {
         match stmt {
             Statement::VariableDeclaration(var) => self.gen_var_decl(var),
             Statement::ExpressionStatement(expr) => self.gen_expr(expr).code,
+            Statement::IfStatement(if_stmt) => self.gen_if_stmt(if_stmt),
             Statement::ReturnStatement(expr) => self.gen_ret_stmt(expr),
+            Statement::BlockStatement(block) => self.gen_block_stmt(block),
             _ => panic!("cannot generate ssa for statement"),
         }
     }
@@ -361,7 +376,7 @@ impl IR {
             // if this is just a declaration, assign the value of the
             // variable to 0.
             let val = Value {
-                id: self.id_store.next(),
+                id: self.id_store.get(),
                 op: Op::CONST,
                 arg1: Some(ValueType::CONST(0)),
                 arg2: None,
@@ -391,18 +406,70 @@ impl IR {
         expr_info.code
     }
 
+    fn gen_if_stmt(&mut self, if_stmt: &If) -> Vec<Value> {
+        let mut code = Vec::new();
+        let mut expr_info = self.gen_expr(&if_stmt.cond);
+
+        if expr_info.var_type.ident != "bool" {
+            panic!("if statement condition does not evaluate to boolean");
+        }
+        // conditional jump to consequent code, otherwise fallthrough
+        // consequent code has not be created yet, so fill in arg2 later
+        let mut if_val = Value {
+            id: self.id_store.get(),
+            op: Op::IF,
+            arg1: Some(ValueType::ID(expr_info.code.last().unwrap().id)),
+            arg2: None,
+        };
+        // a jmp statement that will jump after the consequent code 
+        // consequent code has not been created yet, fill in the subsequent id later
+        let mut goto_end = Value {
+            id: self.id_store.get(),
+            op: Op::GOTO,
+            arg1: None,
+            arg2: None,
+        };
+        let mut alternate_code = Vec::new();
+        if let Some(alternate) = &if_stmt.alternate {
+            alternate_code.append(&mut self.gen_stmt(&alternate));
+            // id should be updated so that if we have if else statements
+            // then the goto from the nested if statement will jump to 
+            // this goto instruction, chaining until it is after the 
+            // entire if statement. This happens because goto_end jumps to 
+            // the id after the generated if statement. Updating here makes this
+            // goto the id after the nested if statement
+            goto_end.id = self.id_store.get();
+        }
+        
+        let mut consequent_code = self.gen_stmt(&if_stmt.consequent);
+
+        if_val.arg2 = Some(ValueType::ID(consequent_code.first().unwrap().id));
+        // NOTE: the jump target we are putting here does not exist yet.
+        // maybe a round of dead code elimination will be necessary to ensure
+        // the output compiled code is correct.
+        goto_end.arg1 = Some(ValueType::ID(self.id_store.next()));
+
+        code.append(&mut expr_info.code);
+        code.push(if_val);
+        code.append(&mut alternate_code);
+        code.push(goto_end);
+        code.append(&mut consequent_code);
+
+        code
+    }
+
     fn gen_ret_stmt(&mut self, expr: &Expression) -> Vec<Value> {
         let mut code = Vec::new();
         let mut expr_info = self.gen_expr(expr);
         code.append(&mut expr_info.code);
         code.push(Value {
-            id: self.id_store.next(),
+            id: self.id_store.get(),
             op: Op::RET_VAL,
             arg1: Some(ValueType::ID(expr_info.id)),
             arg2: None,
         });
         code.push(Value {
-            id: self.id_store.next(),
+            id: self.id_store.get(),
             op: Op::RET,
             arg1: None,
             arg2: None,
@@ -425,7 +492,7 @@ impl IR {
             }
             Expression::Number(n) => {
                 let val = Value {
-                    id: self.id_store.next(),
+                    id: self.id_store.get(),
                     op: Op::CONST,
                     arg1: Some(ValueType::CONST(*n)),
                     arg2: None,
@@ -456,7 +523,7 @@ impl IR {
                 let mut expr_info = self.gen_expr(&prefix.operand);
                 code.append(&mut expr_info.code);
                 let val = Value {
-                    id: self.id_store.next(),
+                    id: self.id_store.get(),
                     op: Op::NEG,
                     arg1: Some(ValueType::ID(expr_info.id)),
                     arg2: None,
@@ -487,12 +554,14 @@ impl IR {
                 let expr = *infix.left.clone();
                 if let Expression::Identifier(ident) = expr {
                     // check that the variable is defined
-                    let mut var_info = self.get_var_all_scopes(&ident)
-                        .expect(&format!("{} is not defined", ident)).clone();
+                    let mut var_info = self
+                        .get_var_all_scopes(&ident)
+                        .expect(&format!("{} is not defined", ident))
+                        .clone();
                     code.append(&mut expr_info_right.code);
 
                     // update the variable in the symbol table
-                    var_info.id = code.last().unwrap().id; 
+                    var_info.id = code.last().unwrap().id;
                     self.update_variable(&ident, var_info);
                     return ExprInfo {
                         id: code.last().unwrap().id,
@@ -541,7 +610,7 @@ impl IR {
         code.append(&mut expr_info_right.code);
 
         let val = Value {
-            id: self.id_store.next(),
+            id: self.id_store.get(),
             op,
             arg1: Some(ValueType::ID(expr_info_left.id)),
             arg2: Some(ValueType::ID(expr_info_right.id)),

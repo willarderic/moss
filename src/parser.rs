@@ -1,6 +1,6 @@
 use crate::ast::{
     CallExpression, Declaration, Expression, For, Function, If, InfixExpression, Node,
-    PrefixExpression, Statement, Variable, VariableType,
+    PrefixExpression, Statement, Variable, VariableType, Block
 };
 use crate::lexer::Token;
 
@@ -96,9 +96,9 @@ impl Parser {
         self.consume(Token::LPAREN);
         self.consume(Token::RPAREN);
 
-        let stmts = self.parse_block();
+        let block = self.parse_block_statement();
 
-        Declaration::FunctionDeclaration(Function { name, stmts })
+        Declaration::FunctionDeclaration(Function { name, block })
     }
 
     fn parse_var_decl(&mut self) -> Declaration {
@@ -177,7 +177,7 @@ impl Parser {
         }
     }
 
-    fn parse_block(&mut self) -> Vec<Statement> {
+    fn parse_block_statement(&mut self) -> Statement {
         self.consume(Token::LBRACE);
         let mut stmts: Vec<Statement> = Vec::new();
         while self.curr_token != Token::RBRACE {
@@ -185,7 +185,7 @@ impl Parser {
         }
         self.consume(Token::RBRACE);
 
-        stmts
+        Statement::BlockStatement(Block { stmts })
     }
 
     fn parse_statement(&mut self) -> Statement {
@@ -197,6 +197,7 @@ impl Parser {
                 Declaration::VariableDeclaration(var) => Statement::VariableDeclaration(var),
                 _ => panic!("Expected variable declaration"),
             },
+            Token::LBRACE => self.parse_block_statement(),
             _ => self.parse_expr_statement(),
         }
     }
@@ -204,9 +205,16 @@ impl Parser {
     fn parse_if_statement(&mut self) -> Statement {
         self.consume(Token::IF);
         let cond = self.parse_expr(Precedence::NONE);
-        let block = self.parse_block();
+        let consequent = Box::new(self.parse_block_statement());
+        let mut alternate: Option<Box<Statement>> = None;
+        if self.curr_token == Token::ELSE {
+            self.consume(Token::ELSE);
+            if self.curr_token == Token::IF || self.curr_token == Token::LBRACE {
+                alternate = Some(Box::new(self.parse_statement()));
+            }
+        }
 
-        return Statement::IfStatement(If { cond, block });
+        return Statement::IfStatement(If { cond, consequent, alternate });
     }
 
     fn parse_for_statement(&mut self) -> Statement {
@@ -220,7 +228,7 @@ impl Parser {
                 let cond = self.parse_expr(Precedence::NONE);
                 self.consume(Token::SEMICOLON);
                 let post = Some(Box::new(self.parse_expr(Precedence::NONE)));
-                let block = self.parse_block();
+                let block = Box::new(self.parse_block_statement());
                 return Statement::ForStatement(For {
                     pre,
                     cond,
@@ -230,7 +238,7 @@ impl Parser {
             }
             Token::LBRACE => {
                 let cond = expr;
-                let block = self.parse_block();
+                let block = Box::new(self.parse_block_statement());
                 return Statement::ForStatement(For {
                     pre: None,
                     cond,
