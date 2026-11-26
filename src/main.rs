@@ -2,14 +2,14 @@ mod ast;
 mod lexer;
 mod parser;
 mod symbol_table;
-mod ir;
+mod compiler;
 
 use std::env;
 use std::fs;
 
 use crate::lexer::lex;
 use crate::parser::Parser;
-use crate::ir::IR;
+use crate::compiler::Compiler;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -31,9 +31,9 @@ fn main() {
     println!("------------ Parser Output ------------");
     println!("{}", program);
 
-    let mut ir = IR::new(); 
-    let _ = ir.gen_ssa(&program);
-    println!("------------ IR Output ------------");
-    println!("{}", ir);
+   let mut Compiler = Compiler::new(); 
+   let _ = compiler.gen_ssa(&program);
+   println!("------------ Compiler Output ------------");
+   println!("{}", compiler);
 
 }

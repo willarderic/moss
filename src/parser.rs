@@ -1,6 +1,6 @@
 use crate::ast::{
-    CallExpression, Declaration, Expression, For, Function, If, InfixExpression, Node,
-    PrefixExpression, Statement, Variable, VariableType, Block
+    CallExpression, Declaration, Expression, For, FunctionDecl, If, InfixExpression, Node,
+    PrefixExpression, Statement, VariableDecl, VariableType, BlockStmt
 };
 use crate::lexer::Token;
 
@@ -98,7 +98,7 @@ impl Parser {
 
         let block = self.parse_block_statement();
 
-        Declaration::FunctionDeclaration(Function { name, block })
+        Declaration::Function(FunctionDecl { name, block })
     }
 
     fn parse_var_decl(&mut self) -> Declaration {
@@ -115,10 +115,10 @@ impl Parser {
             Token::ASSIGN => {
                 self.consume(Token::ASSIGN);
                 let value = Some(self.parse_expr(Precedence::NONE));
-                Declaration::VariableDeclaration(Variable { name, var_type: typ, value })
+                Declaration::Variable(VariableDecl { name, var_type: typ, value })
             }
             Token::SEMICOLON => {
-                Declaration::VariableDeclaration(Variable {
+                Declaration::Variable(VariableDecl {
                     name,
                     var_type: typ,
                     value: None,
@@ -185,7 +185,7 @@ impl Parser {
         }
         self.consume(Token::RBRACE);
 
-        Statement::BlockStatement(Block { stmts })
+        Statement::BlockStatement(BlockStmt { stmts })
     }
 
     fn parse_statement(&mut self) -> Statement {
@@ -194,7 +194,7 @@ impl Parser {
             Token::FOR => self.parse_for_statement(),
             Token::IF => self.parse_if_statement(),
             Token::VAR => match self.parse_var_decl_with_semicolon() {
-                Declaration::VariableDeclaration(var) => Statement::VariableDeclaration(var),
+                Declaration::Variable(var) => Statement::VariableDeclaration(var),
                 _ => panic!("Expected variable declaration"),
             },
             Token::LBRACE => self.parse_block_statement(),
@@ -219,11 +219,17 @@ impl Parser {
 
     fn parse_for_statement(&mut self) -> Statement {
         self.consume(Token::FOR);
-        let expr = self.parse_expr(Precedence::NONE);
+        // CHECK IF WE HAVE A VARIABLE DECLARATION BEFORE PARSING AN EXPRESSION
+        let node: Node;
+        if self.curr_token == Token::VAR {
+            node = Node::Declaration(self.parse_var_decl());
+        } else {
+            node = Node::Statement(Statement::ExpressionStatement(self.parse_expr(Precedence::NONE)));
+        }
 
         match self.curr_token {
             Token::SEMICOLON => {
-                let pre = Some(Box::new(expr));
+                let pre = Some(Box::new(node));
                 self.consume(Token::SEMICOLON);
                 let cond = self.parse_expr(Precedence::NONE);
                 self.consume(Token::SEMICOLON);
@@ -237,7 +243,13 @@ impl Parser {
                 });
             }
             Token::LBRACE => {
-                let cond = expr;
+                let cond = match node {
+                    Node::Statement(stmt) => match stmt {
+                        Statement::ExpressionStatement(expr) => expr,
+                        _ => panic!("for condition must be an expression"),
+                    }
+                    _ => panic!("for condition must be an expression"),
+                };
                 let block = Box::new(self.parse_block_statement());
                 return Statement::ForStatement(For {
                     pre: None,

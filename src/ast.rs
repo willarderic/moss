@@ -49,6 +49,7 @@ op          → "==" | "!=" | "<" | "<=" | ">" | ">="
                | "+"  | "-"  | "*" | "/" ;
 call        → IDENT "(" expr_list ")" ;
 */
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Node {
     Program(Vec<Declaration>),
     Declaration(Declaration),
@@ -76,12 +77,12 @@ impl Display for Node {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Declaration {
-    FunctionDeclaration(Function),
-    VariableDeclaration(Variable),
+    Function(FunctionDecl),
+    Variable(VariableDecl),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Function {
+pub struct FunctionDecl {
     pub name: String,
     pub block: Statement,
 }
@@ -89,23 +90,25 @@ pub struct Function {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VariableType {
     pub ident: String,
-    pub pointer: bool,
-    pub array: bool,
-    pub array_size: u64,
+    // depth of a type is how long the pointer chain is to get
+    // to the underlying type
+    pub depth: u64,
+    // dimensions is the array dimensions of the type (can be multiple dimensions) 
+    pub dimensions: Vec<u64>,
 }
 
 impl Display for VariableType {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
-            "VariableType [ident: {}, pointer: {}, array: {}, array_size: {}]",
-            self.ident, self.pointer, self.array, self.array_size
+            "VariableType [ident: {}, pointer_depth: {}, dimensions: {}]",
+            self.ident, self.depth, self.dimensions
         )
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Variable {
+pub struct VariableDecl {
     pub name: String,
     pub var_type: VariableType,
     pub value: Option<Expression>,
@@ -114,11 +117,11 @@ pub struct Variable {
 impl Display for Declaration {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Self::FunctionDeclaration(func) => {
+            Self::Function(func) => {
                 write!(f, "\tFUNCTION({})\n{}", func.name, func.block).unwrap();
                 Ok(())
             }
-            Self::VariableDeclaration(var) => {
+            Self::Variable(var) => {
                 let s = format!("\tVAR({}", var.name);
                 format!("{}, {}", s, var.var_type);
                 let s = match &var.value {
@@ -137,18 +140,18 @@ pub enum Statement {
     IfStatement(If),
     ReturnStatement(Expression),
     ExpressionStatement(Expression),
-    VariableDeclaration(Variable),
-    BlockStatement(Block),
+    VariableDeclaration(VariableDecl),
+    BlockStatement(BlockStmt),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Block {
+pub struct BlockStmt {
     pub stmts: Vec<Statement>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct For {
-    pub pre: Option<Box<Expression>>,
+    pub pre: Option<Box<Node>>,
     pub cond: Expression,
     pub post: Option<Box<Expression>>,
     pub block: Box<Statement>,

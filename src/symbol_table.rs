@@ -3,9 +3,12 @@ use crate::ast::VariableType;
 
 use std::collections::HashMap;
 
+pub type BlockId = u64; 
+pub type ValueId = u64;
+
 #[derive(Clone)]
 pub struct VariableInfo {
-    pub id: u64,
+    pub id: ValueId,
     pub var_type: VariableType,
 }
 
